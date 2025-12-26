@@ -59,7 +59,7 @@ gridModal:bind({}, 'return', function() closeMenu() end)
 -- ==========================================
 -- 2. HTML INTERFACE
 -- ==========================================
-local htmlContent = [[
+local htmlContentTemplate = [[
 <!DOCTYPE html>
 <html>
 <head>
@@ -67,9 +67,23 @@ local htmlContent = [[
     body { background-color: #1e1e1e; color: white; font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; user-select: none; cursor: default; }
     h2 { margin: 0 0 10px 0; font-size: 15px; color: #888; text-transform: uppercase; letter-spacing: 1px; }
     .grid-container { display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; gap: 8px; width: 90%; height: 75%; }
-    .btn { background: #333; border: 1px solid #444; border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; font-size: 24px; transition: 0.1s; color: #ddd; position: relative; }
+    
+    .btn { 
+        background: #333; border: 2px solid #444; border-radius: 6px; 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        cursor: pointer; font-size: 24px; transition: 0.1s; color: #ddd; position: relative; 
+    }
     .btn:hover { background: #007aff; border-color: #007aff; color: white; }
     .btn:active { transform: scale(0.96); }
+
+    /* NEU: Der Style für die aktive Position */
+    .active-pos { 
+        border-color: #4cd964 !important; 
+        background-color: #1e3a23;
+        box-shadow: 0 0 10px rgba(76, 217, 100, 0.4);
+        color: white;
+    }
+
     .key-hint { position: absolute; top: 4px; left: 6px; font-size: 10px; opacity: 0.4; font-weight: bold; font-family: monospace; }
     .center { background: #222; border: 2px dashed #555; cursor: default; font-size: 12px; color: #777; }
     .system { grid-column: 1 / span 3; margin-top: 10px; font-size: 13px; height: 35px; background: #2a2a2a; }
@@ -78,26 +92,32 @@ local htmlContent = [[
 <body>
     <h2 id="title">Monitor Position</h2>
     <div class="grid-container">
-        <div class="btn" onclick="send('TL')"><span class="key-hint">⇧ + ◀</span>↖️</div>
+        <div id="TL" class="btn" onclick="send('TL')"><span class="key-hint">⇧ + ◀</span>↖️</div>
+        <div id="T"  class="btn" onclick="send('T')"><span class="key-hint">▲</span>⬆️</div>
+        <div id="TR" class="btn" onclick="send('TR')"><span class="key-hint">⇧ + ▶</span>↗️</div>
         
-        <div class="btn" onclick="send('T')"><span class="key-hint">▲</span>⬆️</div>
-        
-        <div class="btn" onclick="send('TR')"><span class="key-hint">⇧ + ▶</span>↗️</div>
-        
-        <div class="btn" onclick="send('L')"><span class="key-hint">◀</span>⬅️</div>
-        
+        <div id="L"  class="btn" onclick="send('L')"><span class="key-hint">◀</span>⬅️</div>
         <div class="btn center">💻<br>Laptop</div>
+        <div id="R"  class="btn" onclick="send('R')"><span class="key-hint">▶</span>➡️</div>
         
-        <div class="btn" onclick="send('R')"><span class="key-hint">▶</span>➡️</div>
-        
-        <div class="btn" onclick="send('BL')"><span class="key-hint">⌥ + ◀</span>↙️</div>
-        
-        <div class="btn" onclick="send('B')"><span class="key-hint">▼</span>⬇️</div>
-        
-        <div class="btn" onclick="send('BR')"><span class="key-hint">⌥ + ▶</span>↘️</div>
+        <div id="BL" class="btn" onclick="send('BL')"><span class="key-hint">⌥ + ◀</span>↙️</div>
+        <div id="B"  class="btn" onclick="send('B')"><span class="key-hint">▼</span>⬇️</div>
+        <div id="BR" class="btn" onclick="send('BR')"><span class="key-hint">⌥ + ▶</span>↘️</div>
     </div>
     <div class="btn system" onclick="send('SYSTEM')">🛠 System Settings (S)</div>
+
     <script>
+        // Hier wird {{CURRENT_POS}} von Lua durch den echten Wert ersetzt (z.B. "R")
+        const currentPos = "{{CURRENT_POS}}";
+
+        // Wenn eine Position bekannt ist, markiere den Button
+        if (currentPos && currentPos !== "null") {
+            const btn = document.getElementById(currentPos);
+            if (btn) {
+                btn.classList.add("active-pos");
+            }
+        }
+
         function send(val) { try { window.webkit.messageHandlers.hammerspoon.postMessage(val); } catch(e) {} }
     </script>
 </body>
@@ -112,18 +132,11 @@ end
 function showWebview(knownPos)
     if webview then webview:delete() webview = nil end
 
-    -- FIX: Explicitly search for your monitor "Built-in Retina Display"
     local screen = hs.screen.find("Built-in Retina Display")
-    
-    -- Fallback 1: If the name varies or it is closed (clamshell mode)
     if not screen then screen = hs.screen.find("Built-in") end
-    
-    -- Fallback 2: Take the main monitor (Just in case)
     if not screen then screen = hs.screen.primaryScreen() end
     
-    -- Here is where the error happens if 'screen' was nil. Impossible due to Fallback 2.
     local frame = screen:frame()
-    
     local rect = {
         x = frame.x + (frame.w - winWidth) / 2,
         y = frame.y + (frame.h - winHeight) / 2,
@@ -134,10 +147,13 @@ function showWebview(knownPos)
     local uce = hs.webview.usercontent.new("hammerspoon")
     uce:setCallback(msgCallback)
 
+    -- Current Position for HTML
+    local finalHtml = htmlContentTemplate:gsub("{{CURRENT_POS}}", knownPos or "")
+
     webview = hs.webview.new(rect, {}, uce)
     webview:windowStyle({"titled", "closable", "utility", "HUD"}) 
     webview:level(hs.drawing.windowLevels.floating) 
-    webview:html(htmlContent)
+    webview:html(finalHtml)
     webview:show()
     webview:bringToFront()
     
@@ -166,4 +182,4 @@ monitorWatcher:start()
 
 hs.hotkey.bind({"cmd", "alt", "ctrl"}, "D", checkMonitorStatus)
 
-hs.alert.show("Monitor Manager Ready")
+hs.alert.show("Monitor Manager")
