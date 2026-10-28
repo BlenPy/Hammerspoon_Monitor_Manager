@@ -132,7 +132,6 @@ Preferences are stored in `~/.display_config.json`, keyed by each external displ
 ## Limitations
 
 - Only one external display is handled. Without `--id`, the first enabled external display is used.
-- The HUD labels are currently in German.
 
 ## Credits
 
