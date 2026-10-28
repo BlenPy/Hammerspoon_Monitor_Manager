@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Monitor Island</title>
+<style>
+  :root {
+    --pill-bg: #000;
+    --cell-bg: #16161a;
+    --cell-hover: #232329;
+    --text: #e8e8ec;
+    --muted: #8a8a94;
+    --accent: #4cd964;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body {
+    background: transparent;
+    font-family: -apple-system, "SF Pro Text", sans-serif;
+    color: var(--text);
+    user-select: none;
+    cursor: default;
+  }
+  body { display: flex; justify-content: center; align-items: flex-start; }
+
+  .island {
+    background: var(--pill-bg);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    width: 300px;
+    height: 46px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.08);
+    transition: width .28s cubic-bezier(.22,1,.36,1), height .28s cubic-bezier(.22,1,.36,1), padding .28s cubic-bezier(.22,1,.36,1);
+  }
+  body.expanded .island {
+    width: 520px;
+    height: 220px;
+    padding: 12px;
+  }
+
+  /* ---------- PILL (collapsed) ---------- */
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 26px;
+  }
+  .pill .close-x {
+    color: #c2c2cc; font-size: 15px; font-weight: 600;
+    cursor: pointer; padding: 4px 8px; border-radius: 8px;
+    background: #1c1c22;
+  }
+  .pill .close-x:hover { color: #fff; background: #2a2a33; }
+  .pill .status-wrap { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    flex: none;
+  }
+  .pill .dot.new { background: #ffb02e; box-shadow: 0 0 8px #ffb02e; }
+  .pill .status { font-size: 13px; font-weight: 600; letter-spacing: .3px; }
+  .pill .pos-badge {
+    font-size: 11px; color: var(--muted);
+    background: #1c1c22; border-radius: 8px; padding: 3px 8px;
+  }
+  .pill .chevron { color: var(--muted); font-size: 11px; }
+  .pill .close-x { color: var(--muted); font-size: 12px; cursor: pointer; padding: 2px 4px; border-radius: 6px; }
+  .pill .close-x:hover { color: var(--text); background: #1c1c22; }
+
+  /* ---------- GRID (expanded) ---------- */
+  .grid {
+    display: none;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
+    gap: 6px;
+    margin-top: 10px;
+    height: calc(100% - 36px);
+  }
+  body.expanded .grid { display: grid; }
+  body.expanded .island { padding: 12px; }
+
+  .cell {
+    background: var(--cell-bg);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    opacity: 0;
+    transform: translateY(10px) scale(.92);
+    animation: pop .25s cubic-bezier(.22,1,.36,1) forwards;
+    transition: background .15s, box-shadow .15s, transform .15s;
+  }
+  body.expanded .cell { animation: pop .25s cubic-bezier(.22,1,.36,1) forwards; }
+  .cell:nth-child(1) { animation-delay: .02s; }
+  .cell:nth-child(2) { animation-delay: .04s; }
+  .cell:nth-child(3) { animation-delay: .06s; }
+  .cell:nth-child(4) { animation-delay: .08s; }
+  .cell:nth-child(5) { animation-delay: .10s; }
+  .cell:nth-child(6) { animation-delay: .12s; }
+  .cell:nth-child(7) { animation-delay: .14s; }
+  .cell:nth-child(8) { animation-delay: .16s; }
+  .cell:nth-child(9) { animation-delay: .18s; }
+
+  @keyframes pop {
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .cell:hover { background: var(--cell-hover); transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,.4); }
+  .cell:active { transform: scale(.95); }
+
+  .cell .arrow { font-size: 20px; line-height: 1; }
+  .cell .hint { font-size: 12px; color: #a8a8b4; font-family: monospace; letter-spacing: 1px; }
+
+  .cell.active {
+    background: #12301c;
+    box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(76,217,100,.35);
+  }
+
+  .center {
+    background: #0c0c10;
+    cursor: default;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .center:hover { background: #0c0c10; transform: none; box-shadow: none; }
+</style>
+</head>
+<body>
+  <div class="island">
+    <div class="pill" id="pill" onclick="expand()">
+      <span class="close-x" onclick="event.stopPropagation(); send({action:'close'})" title="Schließen">✕</span>
+      <span class="status-wrap">
+        <span class="dot {{DOT_CLASS}}"></span>
+        <span class="status">{{STATUS}}</span>
+        <span class="pos-badge">{{POS_LABEL}}</span>
+      </span>
+    </div>
+
+    <div class="grid">
+      <div class="cell" data-pos="TL"><span class="arrow">↖</span><span class="hint">⇧ ←</span></div>
+      <div class="cell" data-pos="T"><span class="arrow">↑</span><span class="hint">↑</span></div>
+      <div class="cell" data-pos="TR"><span class="arrow">↗</span><span class="hint">⇧ →</span></div>
+      <div class="cell" data-pos="L"><span class="arrow">←</span><span class="hint">←</span></div>
+      <div class="cell center">💻 Laptop</div>
+      <div class="cell" data-pos="R"><span class="arrow">→</span><span class="hint">→</span></div>
+      <div class="cell" data-pos="BL"><span class="arrow">↙</span><span class="hint">⌥ ←</span></div>
+      <div class="cell" data-pos="B"><span class="arrow">↓</span><span class="hint">↓</span></div>
+      <div class="cell" data-pos="BR"><span class="arrow">↘</span><span class="hint">⌥ →</span></div>
+    </div>
+  </div>
+
+  <script>
+    const CURRENT_POS = "{{CURRENT_POS}}";
+    if (CURRENT_POS) {
+      const cell = document.querySelector('[data-pos="' + CURRENT_POS + '"]');
+      if (cell) cell.classList.add("active");
+    }
+
+    function send(msg) {
+      try { window.webkit.messageHandlers.hammerspoon.postMessage(msg); }
+      catch (e) { /* browser preview fallback */ }
+    }
+
+    function expand() {
+      document.body.classList.add("expanded");
+      send({ action: "expand" });
+    }
+
+    document.querySelectorAll(".cell[data-pos]").forEach(cell => {
+      cell.addEventListener("click", () => send({ action: "set", pos: cell.dataset.pos }));
+    });
+  </script>
+</body>
+</html>
